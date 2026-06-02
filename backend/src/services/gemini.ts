@@ -5,14 +5,17 @@ export interface GameSummary {
     sources: string[];
 }
 
+
+
 const summarizeGameReviews = async (game: string, snippets: Array<{ content: string; url: string }>): Promise<GameSummary> => {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+    if (!GEMINI_API_KEY) {
         throw new Error("GEMINI API Key is missing");
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const genAi = new GoogleGenerativeAI(GEMINI_API_KEY);
+    const model = genAi.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const reviewText = snippets.map(s => s.content).join("\n\n")
 
@@ -33,4 +36,26 @@ const summarizeGameReviews = async (game: string, snippets: Array<{ content: str
     return summary;
 }
 
-export { summarizeGameReviews };
+const chatAboutGame = async (message: string, gameTitle: string, gameSummary: string, history: { role: string, content: string }[]): Promise<string> => {
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+    const genAi = new GoogleGenerativeAI(GEMINI_API_KEY!);
+    const model = genAi.getGenerativeModel({
+        model: "gemini-2.5-flash",
+        systemInstruction: `"You are a game expert assistant. The user is asking about ${gameTitle}. 
+            Here is a summary from reviews: ${gameSummary}. 
+            Answer questions based on this context."`
+    });
+
+    const chat = model.startChat({
+        history: history.map(h => ({
+            role: h.role,
+            parts: [{ text: h.content }]
+        }))
+    })
+
+    const result = await chat.sendMessage(message);
+
+    return result.response.text();
+}
+
+export { summarizeGameReviews, chatAboutGame };
