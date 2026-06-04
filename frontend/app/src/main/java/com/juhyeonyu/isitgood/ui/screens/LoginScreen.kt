@@ -7,11 +7,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.collectAsState
+import com.juhyeonyu.isitgood.ui.viewmodel.AuthState
+import com.juhyeonyu.isitgood.ui.viewmodel.AuthViewModel
 
 @Composable
-fun LoginScreen(onLoginSuccess: () -> Unit) {
+fun LoginScreen(
+    viewModel: AuthViewModel,
+    onLoginSuccess: () -> Unit
+) {
+
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    val state by viewModel.state.collectAsState()
+
+    LaunchedEffect(state) {
+        if (state is AuthState.Success) {
+            onLoginSuccess()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -44,7 +59,8 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
-            onClick = { onLoginSuccess() },
+            onClick = { viewModel.login(email, password) },
+            enabled = state !is AuthState.Loading,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Login")
@@ -53,10 +69,19 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
         Spacer(modifier = Modifier.height(8.dp))
 
         OutlinedButton(
-            onClick = { onLoginSuccess() },
+            onClick = { viewModel.register(email, password) },
+            enabled = state !is AuthState.Loading,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Register")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        when (val s = state) {
+            is AuthState.Loading -> CircularProgressIndicator()
+            is AuthState.Error   -> Text(s.message, color = MaterialTheme.colorScheme.error)
+            else                 -> { /* nothing to show for Idle or Success */ }
         }
     }
 }
