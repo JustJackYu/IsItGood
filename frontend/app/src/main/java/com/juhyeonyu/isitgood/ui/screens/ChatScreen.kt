@@ -8,16 +8,31 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.juhyeonyu.isitgood.ui.viewmodel.ChatState
+import com.juhyeonyu.isitgood.ui.viewmodel.ChatViewModel
+import com.juhyeonyu.isitgood.ui.viewmodel.SharedViewModel
 
 @Composable
-fun ChatScreen(gameTitle: String, summary: String) {
+fun ChatScreen(
+    sharedViewModel: SharedViewModel
+) {
+    val chatViewModel: ChatViewModel = viewModel()
+
     var message by remember { mutableStateOf("") }
-    val messages = remember { mutableStateListOf<Pair<String, String>>() }
+    val messages = chatViewModel.messages
+
+    val chatState by chatViewModel.state.collectAsState()
+
+    LaunchedEffect(Unit) {
+        chatViewModel.gameTitle = sharedViewModel.gameTitle
+        chatViewModel.summary = sharedViewModel.summary
+    }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
 
         Text(
-            "Chat — $gameTitle",
+            "Chat — ${sharedViewModel.gameTitle}",
             style = MaterialTheme.typography.titleMedium
         )
 
@@ -60,14 +75,28 @@ fun ChatScreen(gameTitle: String, summary: String) {
                 modifier = Modifier.weight(1f)
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Button(onClick = {
-                if (message.isNotBlank()) {
-                    messages.add(Pair("user", message))
-                    message = ""
-                }
-            }) {
+            Button(
+                onClick = {
+                    if (message.isNotBlank()) {
+                        chatViewModel.sendMessage(message)
+                        message = ""
+                    }
+                },
+                enabled = chatState !is ChatState.Loading
+            ) {
                 Text("Send")
             }
+        }
+        when (val s = chatState) {
+            is ChatState.Loading -> {
+                Spacer(modifier = Modifier.height(8.dp))
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+            }
+            is ChatState.Error -> {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(s.message, color = MaterialTheme.colorScheme.error)
+            }
+            is ChatState.Idle -> {}
         }
     }
 }

@@ -12,8 +12,10 @@ import androidx.navigation.navArgument
 import com.juhyeonyu.isitgood.ui.screens.*
 import com.juhyeonyu.isitgood.ui.theme.IsItGoodTheme
 import com.juhyeonyu.isitgood.ui.viewmodel.AuthViewModel
+import com.juhyeonyu.isitgood.ui.viewmodel.ChatViewModel
 import com.juhyeonyu.isitgood.ui.viewmodel.HomeViewModel
 import com.juhyeonyu.isitgood.ui.viewmodel.SearchViewModel
+import com.juhyeonyu.isitgood.ui.viewmodel.SharedViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -32,6 +34,7 @@ fun AppNavigation() {
     val authViewModel: AuthViewModel = viewModel()
     val homeViewModel: HomeViewModel = viewModel()
     val searchViewModel: SearchViewModel = viewModel()
+    val sharedViewModel: SharedViewModel = viewModel()
 
     NavHost(navController = navController, startDestination = "login") {
 
@@ -71,7 +74,7 @@ fun AppNavigation() {
             route = "detail/{rawgId}/{title}",
             arguments = listOf(
                 navArgument("rawgId") { type = NavType.IntType },
-                navArgument("title") { type = NavType.StringType }
+                navArgument("title") { type = NavType.StringType },
             )
         ) { backStackEntry ->
             val rawgId = backStackEntry.arguments?.getInt("rawgId") ?: 0
@@ -79,22 +82,15 @@ fun AppNavigation() {
             GameDetailScreen(
                 rawgId = rawgId,
                 title = title,
-                onChatClick = { gameTitle, gameSummary ->
-                    navController.navigate("chat/$gameTitle/$gameSummary")
-                }
+                sharedViewModel = sharedViewModel,
+                onChatClick = { navController.navigate("chat") }
             )
         }
 
-        composable(
-            route = "chat/{title}/{summary}",
-            arguments = listOf(
-                navArgument("title") { type = NavType.StringType },
-                navArgument("summary") { type = NavType.StringType }
+        composable("chat") {
+            ChatScreen(
+                sharedViewModel = sharedViewModel,
             )
-        ) { backStackEntry ->
-            val title = backStackEntry.arguments?.getString("title") ?: ""
-            val summary = backStackEntry.arguments?.getString("summary") ?: ""
-            ChatScreen(gameTitle = title, summary = summary)
         }
     }
 }
