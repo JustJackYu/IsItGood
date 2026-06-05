@@ -36,19 +36,19 @@ const summarizeGameReviews = async (game: string, snippets: Array<{ content: str
     return summary;
 }
 
-const chatAboutGame = async (message: string, gameTitle: string, gameSummary: string, history: { role: string, content: string }[]): Promise<string> => {
+const chatAboutGame = async (message: string, gameTitle: string, summary: string, history: { role: string, content: string }[]): Promise<string> => {
     const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
     const genAi = new GoogleGenerativeAI(GEMINI_API_KEY!);
     const model = genAi.getGenerativeModel({
         model: "gemini-2.5-flash",
-        systemInstruction: `"You are a game expert assistant. The user is asking about ${gameTitle}. 
-            Here is a summary from reviews: ${gameSummary}. 
-            Answer questions based on this context."`
+        systemInstruction: `You are a game expert assistant. The user is asking about ${gameTitle}. 
+            Here is a summary from reviews: ${summary}. 
+            Answer questions based on this context.`
     });
 
     const chat = model.startChat({
         history: history.map(h => ({
-            role: h.role,
+            role: h.role === "assistant" ? "model" : h.role,
             parts: [{ text: h.content }]
         }))
     })

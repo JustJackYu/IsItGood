@@ -4,9 +4,9 @@ import { chatAboutGame } from "../services/gemini";
 const router = Router();
 
 router.post('/', async (req: Request, res: Response) => {
-    const { message, gameTitle, gameSummary, history } = req.body;
+    const { message, gameTitle, summary, history } = req.body;
 
-    if (!message || !gameTitle || !gameSummary || !history) {
+    if (!message || !gameTitle || !summary || !history) {
         return res.status(400).json({ message: "Missing required fields" });
     }
 
@@ -15,7 +15,7 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     try {
-        const response = await chatAboutGame(message, gameTitle, gameSummary, history);
+        const response = await chatAboutGame(message, gameTitle, summary, history);
         return res.json({ reply: response });
     }
     catch (error) {
