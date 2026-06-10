@@ -14,24 +14,27 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.juhyeonyu.isitgood.ui.viewmodel.GameDetailViewModel
+import com.juhyeonyu.isitgood.ui.viewmodel.GameState
 import com.juhyeonyu.isitgood.ui.viewmodel.PricesState
-import com.juhyeonyu.isitgood.ui.viewmodel.SharedViewModel
+import com.juhyeonyu.isitgood.ui.viewmodel.SaveState
 import com.juhyeonyu.isitgood.ui.viewmodel.SummaryState
 
 @Composable
 fun GameDetailScreen(
     rawgId: Int,
     title: String,
-    sharedViewModel: SharedViewModel,
-    onChatClick: () -> Unit
+    onChatClick: (rawgId: Int) -> Unit
 ) {
     val viewModel: GameDetailViewModel = viewModel()
     val context = LocalContext.current
     val scrollState = rememberScrollState()
     val summaryState by viewModel.summaryState.collectAsState()
     val pricesState by viewModel.pricesState.collectAsState()
+    val saveState by viewModel.saveState.collectAsState()
+    val gameState by viewModel.gameState.collectAsState()
 
     LaunchedEffect(Unit) {
+        viewModel.loadGame(rawgId)
         viewModel.loadSummary(rawgId, title)
         viewModel.loadPrices(rawgId, title)
     }
@@ -46,7 +49,6 @@ fun GameDetailScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Summary section
         Text("AI Summary", style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -81,7 +83,6 @@ fun GameDetailScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Prices section
         Text("Prices", style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -119,22 +120,35 @@ fun GameDetailScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
+        val game = (gameState as? GameState.Success)?.game
         Button(
-            onClick = { },
+            onClick = {
+                viewModel.saveGame(
+                    id = rawgId,
+                    name = title,
+                    coverImage = game?.backgroundImage,
+                    rating = game?.rating,
+                    released = game?.released
+                )
+            },
+            enabled = saveState !is SaveState.Loading && saveState !is SaveState.Success,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Save Game")
+            Text(
+                when (saveState) {
+                    is SaveState.Loading -> "Saving..."
+                    is SaveState.Success -> "Saved ✓"
+                    is SaveState.Error -> "Save Failed — Retry"
+                    else -> "Save Game"
+                }
+            )
         }
 
         Spacer(modifier = Modifier.height(8.dp))
 
         if (summaryState is SummaryState.Success) {
             OutlinedButton(
-                onClick = {
-                    sharedViewModel.summary = (summaryState as SummaryState.Success).summary
-                    sharedViewModel.gameTitle = title
-                    onChatClick()
-                },
+                onClick = { onChatClick(rawgId) },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Chat about this game")

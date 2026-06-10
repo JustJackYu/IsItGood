@@ -4,11 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.juhyeonyu.isitgood.data.model.AuthRequest
 import com.juhyeonyu.isitgood.data.remote.RetrofitClient
+import com.juhyeonyu.isitgood.utils.parseHttpError
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import org.json.JSONObject
 import retrofit2.HttpException
 
 sealed class AuthState {
@@ -18,7 +18,6 @@ sealed class AuthState {
     data class Error(val message: String) : AuthState()
 }
 
-// Possible refactor - small repeating codes
 class AuthViewModel : ViewModel() {
     private val _state = MutableStateFlow<AuthState>(AuthState.Idle)
     val state: StateFlow<AuthState> = _state.asStateFlow()
@@ -44,17 +43,7 @@ class AuthViewModel : ViewModel() {
                 RetrofitClient.token = response.token
                 _state.value = AuthState.Success(response.token)
             } catch (e: HttpException) {
-                val errorBody = e.response()?.errorBody()?.string()
-                val message = if (errorBody != null) {
-                    try {
-                        JSONObject(errorBody).optString("message", "Something went wrong")
-                    } catch (jsonEx: Exception) {
-                        "Something went wrong"
-                    }
-                } else {
-                    "Something went wrong"
-                }
-                _state.value = AuthState.Error(message)
+                _state.value = AuthState.Error(parseHttpError(e))
             } catch (e: Exception) {
                 _state.value = AuthState.Error("Something went wrong. Check your connection.")
             }
@@ -82,17 +71,7 @@ class AuthViewModel : ViewModel() {
                 RetrofitClient.token = response.token
                 _state.value = AuthState.Success(response.token)
             } catch (e: HttpException) {
-                val errorBody = e.response()?.errorBody()?.string()
-                val message = if (errorBody != null) {
-                    try {
-                        JSONObject(errorBody).optString("error", "Something went wrong")
-                    } catch (jsonEx: Exception) {
-                        "Something went wrong"
-                    }
-                } else {
-                    "Something went wrong"
-                }
-                _state.value = AuthState.Error(message)
+                _state.value = AuthState.Error(parseHttpError(e))
             } catch (e: Exception) {
                 _state.value = AuthState.Error("Something went wrong. Check your connection.")
             }

@@ -12,10 +12,8 @@ import androidx.navigation.navArgument
 import com.juhyeonyu.isitgood.ui.screens.*
 import com.juhyeonyu.isitgood.ui.theme.IsItGoodTheme
 import com.juhyeonyu.isitgood.ui.viewmodel.AuthViewModel
-import com.juhyeonyu.isitgood.ui.viewmodel.ChatViewModel
 import com.juhyeonyu.isitgood.ui.viewmodel.HomeViewModel
 import com.juhyeonyu.isitgood.ui.viewmodel.SearchViewModel
-import com.juhyeonyu.isitgood.ui.viewmodel.SharedViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,7 +32,6 @@ fun AppNavigation() {
     val authViewModel: AuthViewModel = viewModel()
     val homeViewModel: HomeViewModel = viewModel()
     val searchViewModel: SearchViewModel = viewModel()
-    val sharedViewModel: SharedViewModel = viewModel()
 
     NavHost(navController = navController, startDestination = "login") {
 
@@ -52,9 +49,7 @@ fun AppNavigation() {
         composable("home") {
             HomeScreen(
                 viewModel = homeViewModel,
-                onSearchClick = {
-                    navController.navigate("search")
-                },
+                onSearchClick = { navController.navigate("search") },
                 onGameClick = { rawgId, title ->
                     navController.navigate("detail/$rawgId/$title")
                 }
@@ -74,7 +69,7 @@ fun AppNavigation() {
             route = "detail/{rawgId}/{title}",
             arguments = listOf(
                 navArgument("rawgId") { type = NavType.IntType },
-                navArgument("title") { type = NavType.StringType },
+                navArgument("title") { type = NavType.StringType }
             )
         ) { backStackEntry ->
             val rawgId = backStackEntry.arguments?.getInt("rawgId") ?: 0
@@ -82,15 +77,18 @@ fun AppNavigation() {
             GameDetailScreen(
                 rawgId = rawgId,
                 title = title,
-                sharedViewModel = sharedViewModel,
-                onChatClick = { navController.navigate("chat") }
+                onChatClick = { id -> navController.navigate("chat/$id") }
             )
         }
 
-        composable("chat") {
-            ChatScreen(
-                sharedViewModel = sharedViewModel,
+        composable(
+            route = "chat/{rawgId}",
+            arguments = listOf(
+                navArgument("rawgId") { type = NavType.IntType }
             )
+        ) { backStackEntry ->
+            val rawgId = backStackEntry.arguments?.getInt("rawgId") ?: 0
+            ChatScreen(rawgId = rawgId)
         }
     }
 }
