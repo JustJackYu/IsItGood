@@ -6,11 +6,12 @@ import androidx.lifecycle.viewModelScope
 import com.juhyeonyu.isitgood.data.model.ChatMessage
 import com.juhyeonyu.isitgood.data.model.ChatRequest
 import com.juhyeonyu.isitgood.data.remote.RetrofitClient
+import com.juhyeonyu.isitgood.data.repository.GameRepository
+import com.juhyeonyu.isitgood.utils.parseHttpError
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import org.json.JSONObject
 import retrofit2.HttpException
 
 sealed class ChatState {
@@ -27,6 +28,11 @@ class ChatViewModel : ViewModel() {
     private val _state = MutableStateFlow<ChatState>(ChatState.Idle)
     val state: StateFlow<ChatState> = _state.asStateFlow()
 
+    fun loadGameContext(rawgId: Int) {
+        gameTitle = GameRepository.getGame(rawgId)?.name ?: ""
+        summary = GameRepository.getSummary(rawgId) ?: ""
+    }
+
     fun sendMessage(userMessage: String) {
         viewModelScope.launch {
             messages.add("user" to userMessage)
@@ -41,20 +47,10 @@ class ChatViewModel : ViewModel() {
                 messages.add("assistant" to response.reply)
                 _state.value = ChatState.Idle
             } catch (e: HttpException) {
-            val errorBody = e.response()?.errorBody()?.string()
-            val message = if (errorBody != null) {
-                try {
-                    JSONObject(errorBody).optString("message", "Something went wrong")
-                } catch (jsonEx: Exception) {
-                    "Something went wrong"
-                }
-            } else {
-                "Something went wrong"
+                _state.value = ChatState.Error(parseHttpError(e))
+            } catch (e: Exception) {
+                _state.value = ChatState.Error("Something went wrong. Check your connection.")
             }
-            _state.value = ChatState.Error(message)
-        } catch (e: Exception) {
-            _state.value = ChatState.Error("Something went wrong. Check your connection.")
-        }
         }
     }
 }

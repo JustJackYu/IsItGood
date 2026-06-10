@@ -40,7 +40,10 @@ fun SearchScreen(
                 modifier = Modifier.weight(1f)
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Button(onClick = { viewModel.searchGames(query) }) {
+            Button(
+                onClick = { viewModel.searchGames(query) },
+                enabled = searchState !is SearchState.Loading
+            ) {
                 Text("Search")
             }
         }

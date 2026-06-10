@@ -3,11 +3,20 @@ package com.juhyeonyu.isitgood.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.juhyeonyu.isitgood.data.model.Deal
+import com.juhyeonyu.isitgood.data.model.Game
+import com.juhyeonyu.isitgood.data.model.SaveGameRequest
 import com.juhyeonyu.isitgood.data.remote.RetrofitClient
+import com.juhyeonyu.isitgood.data.repository.GameRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+
+sealed class GameState {
+    object Idle : GameState()
+    data class Success(val game: Game) : GameState()
+    object NotFound : GameState()
+}
 
 sealed class SummaryState {
     object Idle : SummaryState()
@@ -23,19 +32,37 @@ sealed class PricesState {
     data class Error(val message: String) : PricesState()
 }
 
+sealed class SaveState {
+    object Idle : SaveState()
+    object Loading : SaveState()
+    object Success : SaveState()
+    data class Error(val message: String) : SaveState()
+}
 
 class GameDetailViewModel : ViewModel() {
+    private val _gameState = MutableStateFlow<GameState>(GameState.Idle)
+    val gameState: StateFlow<GameState> = _gameState.asStateFlow()
+
     private val _summaryState = MutableStateFlow<SummaryState>(SummaryState.Idle)
     val summaryState: StateFlow<SummaryState> = _summaryState.asStateFlow()
 
     private val _pricesState = MutableStateFlow<PricesState>(PricesState.Idle)
     val pricesState: StateFlow<PricesState> = _pricesState.asStateFlow()
 
+    private val _saveState = MutableStateFlow<SaveState>(SaveState.Idle)
+    val saveState: StateFlow<SaveState> = _saveState.asStateFlow()
+
+    fun loadGame(rawgId: Int) {
+        val game = GameRepository.getGame(rawgId)
+        _gameState.value = if (game != null) GameState.Success(game) else GameState.NotFound
+    }
+
     fun loadSummary(id: Int, name: String) {
         viewModelScope.launch {
             _summaryState.value = SummaryState.Loading
             try {
                 val summary = RetrofitClient.api.getGameSummary(id, name)
+                GameRepository.cacheSummary(id, summary.summary)
                 _summaryState.value = SummaryState.Success(summary.summary, summary.sources)
             } catch (e: Exception) {
                 _summaryState.value = SummaryState.Error(e.message ?: "Failed to load summary")
@@ -50,7 +77,25 @@ class GameDetailViewModel : ViewModel() {
                 val prices = RetrofitClient.api.getGamePrices(id, name)
                 _pricesState.value = PricesState.Success(prices)
             } catch (e: Exception) {
-            _pricesState.value = PricesState.Error(e.message ?: "Failed to load prices")
+                _pricesState.value = PricesState.Error(e.message ?: "Failed to load prices")
+            }
+        }
+    }
+
+    fun saveGame(
+        id: Int,
+        name: String,
+        coverImage: String? = null,
+        rating: Float? = null,
+        released: String? = null
+    ) {
+        viewModelScope.launch {
+            _saveState.value = SaveState.Loading
+            try {
+                RetrofitClient.api.saveGame(SaveGameRequest(id, name, coverImage, rating, released))
+                _saveState.value = SaveState.Success
+            } catch (e: Exception) {
+                _saveState.value = SaveState.Error(e.message ?: "Failed to save game")
             }
         }
     }

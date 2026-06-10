@@ -12,7 +12,7 @@ const searchGames = async (query: string): Promise<Game[]> => {
         throw new Error("RAWG API Key is missing");
     }
 
-    const searchUrl = `https://api.rawg.io/api/games?key=${RAWG_API_KEY}&search=${encodeURIComponent(query)}&page_size=10`;
+    const searchUrl = `https://api.rawg.io/api/games?key=${RAWG_API_KEY}&search=${encodeURIComponent(query)}&page_size=20&ordering=-added`;
     const response = await fetch(searchUrl);
 
     if (!response.ok) {
@@ -21,7 +21,7 @@ const searchGames = async (query: string): Promise<Game[]> => {
 
     const data = await response.json();
 
-    return data.results as Game[];
+    return (data.results as Game[]).slice(0, 10);
 }
 
 export { searchGames };
