@@ -10,34 +10,34 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import dev.jeziellago.compose.markdowntext.MarkdownText
+import kotlinx.coroutines.delay
 import com.juhyeonyu.isitgood.ui.viewmodel.ChatState
 import com.juhyeonyu.isitgood.ui.viewmodel.ChatViewModel
 
 @Composable
-fun ChatScreen(
-    rawgId: Int
-) {
+fun ChatScreen(rawgId: Int) {
     val chatViewModel: ChatViewModel = viewModel()
-
     var message by remember { mutableStateOf("") }
     val messages = chatViewModel.messages
     val chatState by chatViewModel.state.collectAsState()
+    val gameTitle by chatViewModel.gameTitle.collectAsState()
     val listState = rememberLazyListState()
+    val isLoading = chatState is ChatState.Loading
 
     LaunchedEffect(Unit) {
         chatViewModel.loadGameContext(rawgId)
     }
 
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
-        }
+    LaunchedEffect(messages.size, isLoading) {
+        val total = messages.size + if (isLoading) 1 else 0
+        if (total > 0) listState.animateScrollToItem(total - 1)
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
 
         Text(
-            "Chat — ${chatViewModel.gameTitle}",
+            text = "Chat — $gameTitle",
             style = MaterialTheme.typography.titleMedium
         )
 
@@ -45,32 +45,23 @@ fun ChatScreen(
 
         LazyColumn(
             state = listState,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             items(messages) { (role, content) ->
-                val isUser = role == "user"
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                    horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
-                ) {
-                    Surface(
-                        color = if (isUser)
-                            MaterialTheme.colorScheme.primary
-                        else
-                            MaterialTheme.colorScheme.surfaceVariant,
-                        shape = MaterialTheme.shapes.medium
-                    ) {
-                        Text(
-                            content,
-                            modifier = Modifier.padding(12.dp),
-                            color = if (isUser)
-                                MaterialTheme.colorScheme.onPrimary
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+                ChatBubble(role = role, content = content)
             }
+            if (isLoading) {
+                item { TypingIndicator() }
+            }
+        }
+
+        if (chatState is ChatState.Error) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = (chatState as ChatState.Error).message,
+                color = MaterialTheme.colorScheme.error
+            )
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -90,22 +81,68 @@ fun ChatScreen(
                         message = ""
                     }
                 },
-                enabled = chatState !is ChatState.Loading
+                enabled = !isLoading
             ) {
                 Text("Send")
             }
         }
+    }
+}
 
-        when (val s = chatState) {
-            is ChatState.Loading -> {
-                Spacer(modifier = Modifier.height(8.dp))
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+@Composable
+private fun ChatBubble(role: String, content: String) {
+    val isUser = role == "user"
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
+    ) {
+        Surface(
+            color = if (isUser) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.surfaceVariant,
+            shape = MaterialTheme.shapes.medium
+        ) {
+            if (isUser) {
+                Text(
+                    text = content,
+                    modifier = Modifier.padding(12.dp),
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            } else {
+                MarkdownText(
+                    markdown = content,
+                    modifier = Modifier.padding(12.dp),
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                )
             }
-            is ChatState.Error -> {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(s.message, color = MaterialTheme.colorScheme.error)
-            }
-            is ChatState.Idle -> {}
+        }
+    }
+}
+
+@Composable
+private fun TypingIndicator() {
+    var dotCount by remember { mutableIntStateOf(1) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(500)
+            dotCount = if (dotCount >= 3) 1 else dotCount + 1
+        }
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Start
+    ) {
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            shape = MaterialTheme.shapes.medium
+        ) {
+            Text(
+                text = ".".repeat(dotCount),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyLarge
+            )
         }
     }
 }

@@ -70,4 +70,10 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
     // Coil for image loading
     implementation("io.coil-kt:coil-compose:2.6.0")
+    // Markdown
+    implementation("com.github.jeziellago:compose-markdown:0.5.8")
+    // Extended Material Icons Library
+    implementation("androidx.compose.material:material-icons-extended")
+    // DataStore for persisting the auth token across app restarts
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
 }

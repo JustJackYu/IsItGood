@@ -32,9 +32,11 @@ fun GameDetailScreen(
     val pricesState by viewModel.pricesState.collectAsState()
     val saveState by viewModel.saveState.collectAsState()
     val gameState by viewModel.gameState.collectAsState()
+    val game = (gameState as? GameState.Success)?.game
 
     LaunchedEffect(Unit) {
         viewModel.loadGame(rawgId)
+        viewModel.checkIfSaved(rawgId)
         viewModel.loadSummary(rawgId, title)
         viewModel.loadPrices(rawgId, title)
     }
@@ -120,28 +122,61 @@ fun GameDetailScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        val game = (gameState as? GameState.Success)?.game
-        Button(
-            onClick = {
-                viewModel.saveGame(
-                    id = rawgId,
-                    name = title,
-                    coverImage = game?.backgroundImage,
-                    rating = game?.rating,
-                    released = game?.released
-                )
-            },
-            enabled = saveState !is SaveState.Loading && saveState !is SaveState.Success,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                when (saveState) {
-                    is SaveState.Loading -> "Saving..."
-                    is SaveState.Success -> "Saved ✓"
-                    is SaveState.Error -> "Save Failed — Retry"
-                    else -> "Save Game"
-                }
-            )
+        when (saveState) {
+            is SaveState.Idle -> Button(
+                onClick = {
+                    viewModel.saveGame(
+                        id = rawgId,
+                        name = title,
+                        coverImage = game?.backgroundImage,
+                        rating = game?.rating,
+                        released = game?.released
+                    )
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Save Game") }
+
+            is SaveState.Saving -> Button(
+                onClick = {},
+                enabled = false,
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Saving...") }
+
+            is SaveState.Saved -> Button(
+                onClick = {},
+                enabled = false,
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Saved ✓") }
+
+            is SaveState.SavedPermanent -> OutlinedButton(
+                onClick = { viewModel.unsaveGame(rawgId) },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Unsave Game") }
+
+            is SaveState.Unsaving -> OutlinedButton(
+                onClick = {},
+                enabled = false,
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Unsaving...") }
+
+            is SaveState.Unsaved -> OutlinedButton(
+                onClick = {},
+                enabled = false,
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Unsaved ✓") }
+
+            is SaveState.Error -> Button(
+                onClick = {
+                    viewModel.saveGame(
+                        id = rawgId,
+                        name = title,
+                        coverImage = game?.backgroundImage,
+                        rating = game?.rating,
+                        released = game?.released
+                    )
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Save Failed — Retry") }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
