@@ -14,15 +14,22 @@ object GameRepository {
         return results
     }
 
-    fun getGame(rawgId: Int): Game? {
-        return gameCache[rawgId]
+    fun getGame(rawgId: Int): Game? = gameCache[rawgId]
+
+    suspend fun getOrFetchGame(rawgId: Int): Game? {
+        gameCache[rawgId]?.let { return it }
+        return try {
+            val game = RetrofitClient.api.getGame(rawgId)
+            gameCache[rawgId] = game
+            game
+        } catch (e: Exception) {
+            null
+        }
     }
 
     fun cacheSummary(rawgId: Int, summary: String) {
         summaryCache[rawgId] = summary
     }
 
-    fun getSummary(rawgId: Int): String? {
-        return summaryCache[rawgId]
-    }
+    fun getSummary(rawgId: Int): String? = summaryCache[rawgId]
 }

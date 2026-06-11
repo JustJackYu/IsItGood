@@ -1,10 +1,11 @@
 import { Router, Request, Response } from "express";
-import { searchGames } from "../services/rawg";
+import { searchGames, fetchGameById } from "../services/rawg";
 import { searchGameReviews } from "../services/tavily";
 import { summarizeGameReviews } from "../services/gemini";
 import { GameSummary } from "../services/gemini";
 import { getGamePrices } from "../services/itad";
 import authMiddleware from "../middleware/auth";
+import { getEffectivePreferences } from "../services/preferences";
 import prisma from "../prisma/client";
 
 interface AuthRequest extends Request {
@@ -16,7 +17,6 @@ interface AuthRequest extends Request {
 
 const router = Router();
 
-// Get saved games — must be before /:id routes or Express reads "saved" as an id
 router.get("/saved", authMiddleware, async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user!.id;
@@ -31,7 +31,6 @@ router.get("/saved", authMiddleware, async (req: AuthRequest, res: Response) => 
     }
 });
 
-// Save a game
 router.post("/save", authMiddleware, async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user!.id;
@@ -55,7 +54,6 @@ router.post("/save", authMiddleware, async (req: AuthRequest, res: Response) => 
     }
 });
 
-// Unsave a game
 router.delete("/save/:rawgId", authMiddleware, async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user!.id;
@@ -75,7 +73,6 @@ router.delete("/save/:rawgId", authMiddleware, async (req: AuthRequest, res: Res
     }
 });
 
-// Search for games
 router.get("/search", async (req: Request, res: Response) => {
     try {
         const query = req.query.q as string;
@@ -90,16 +87,16 @@ router.get("/search", async (req: Request, res: Response) => {
     }
 });
 
-// Get game summary
-router.get("/:id/summary", async (req: Request, res: Response) => {
+router.get("/:id/summary", authMiddleware, async (req: AuthRequest, res: Response) => {
     try {
         const id = req.params.id;
         const gameName = req.query.name as string;
         if (!id || !gameName) {
             return res.status(400).json({ message: "Game ID and name are required" });
         }
+        const prefs = await getEffectivePreferences(req.user!.id);
         const reviews = await searchGameReviews(gameName);
-        const summary = await summarizeGameReviews(gameName, reviews);
+        const summary = await summarizeGameReviews(gameName, reviews, prefs);
         return res.json(summary);
     } catch (error) {
         console.error("Error summarizing game reviews:", error);
@@ -107,7 +104,6 @@ router.get("/:id/summary", async (req: Request, res: Response) => {
     }
 });
 
-// Get game prices
 router.get("/:id/prices", async (req: Request, res: Response) => {
     try {
         const gameName = req.query.name as string;
@@ -118,6 +114,21 @@ router.get("/:id/prices", async (req: Request, res: Response) => {
         return res.json(deals);
     } catch (error) {
         console.error("Error getting game prices:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+// Must be last — /:id is a catch-all and would shadow /search, /saved, /:id/summary etc.
+router.get("/:id", async (req: Request, res: Response) => {
+    try {
+        const id = parseInt(req.params["id"] as string);
+        if (isNaN(id)) {
+            return res.status(400).json({ message: "Invalid game ID" });
+        }
+        const game = await fetchGameById(id);
+        return res.json(game);
+    } catch (error) {
+        console.error("Error fetching game by ID:", error);
         return res.status(500).json({ message: "Internal server error" });
     }
 });

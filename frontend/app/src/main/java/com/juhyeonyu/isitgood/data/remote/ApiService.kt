@@ -14,6 +14,9 @@ interface ApiService {
     @GET("games/search")
     suspend fun searchGames(@Query("q") query: String): List<Game>
 
+    @GET("games/{id}")
+    suspend fun getGame(@Path("id") id: Int): Game
+
     @GET("games/saved")
     suspend fun getSavedGames(): List<SavedGame>
 

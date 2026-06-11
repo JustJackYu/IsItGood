@@ -7,6 +7,7 @@ import com.juhyeonyu.isitgood.data.model.Game
 import com.juhyeonyu.isitgood.data.model.SaveGameRequest
 import com.juhyeonyu.isitgood.data.remote.RetrofitClient
 import com.juhyeonyu.isitgood.data.repository.GameRepository
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,8 +35,11 @@ sealed class PricesState {
 
 sealed class SaveState {
     object Idle : SaveState()
-    object Loading : SaveState()
-    object Success : SaveState()
+    object Saving : SaveState()
+    object Saved : SaveState()
+    object SavedPermanent : SaveState()
+    object Unsaving : SaveState()
+    object Unsaved : SaveState()
     data class Error(val message: String) : SaveState()
 }
 
@@ -53,8 +57,22 @@ class GameDetailViewModel : ViewModel() {
     val saveState: StateFlow<SaveState> = _saveState.asStateFlow()
 
     fun loadGame(rawgId: Int) {
-        val game = GameRepository.getGame(rawgId)
-        _gameState.value = if (game != null) GameState.Success(game) else GameState.NotFound
+        viewModelScope.launch {
+            val game = GameRepository.getOrFetchGame(rawgId)
+            _gameState.value = if (game != null) GameState.Success(game) else GameState.NotFound
+        }
+    }
+
+    fun checkIfSaved(rawgId: Int) {
+        viewModelScope.launch {
+            try {
+                val savedGames = RetrofitClient.api.getSavedGames()
+                val alreadySaved = savedGames.any { it.rawgId == rawgId }
+                _saveState.value = if (alreadySaved) SaveState.SavedPermanent else SaveState.Idle
+            } catch (e: Exception) {
+                _saveState.value = SaveState.Idle
+            }
+        }
     }
 
     fun loadSummary(id: Int, name: String) {
@@ -90,12 +108,28 @@ class GameDetailViewModel : ViewModel() {
         released: String? = null
     ) {
         viewModelScope.launch {
-            _saveState.value = SaveState.Loading
+            _saveState.value = SaveState.Saving
             try {
                 RetrofitClient.api.saveGame(SaveGameRequest(id, name, coverImage, rating, released))
-                _saveState.value = SaveState.Success
+                _saveState.value = SaveState.Saved
+                delay(1500)
+                _saveState.value = SaveState.SavedPermanent
             } catch (e: Exception) {
                 _saveState.value = SaveState.Error(e.message ?: "Failed to save game")
+            }
+        }
+    }
+
+    fun unsaveGame(id: Int) {
+        viewModelScope.launch {
+            _saveState.value = SaveState.Unsaving
+            try {
+                RetrofitClient.api.unsaveGame(id)
+                _saveState.value = SaveState.Unsaved
+                delay(1500)
+                _saveState.value = SaveState.Idle
+            } catch (e: Exception) {
+                _saveState.value = SaveState.Error(e.message ?: "Failed to unsave game")
             }
         }
     }

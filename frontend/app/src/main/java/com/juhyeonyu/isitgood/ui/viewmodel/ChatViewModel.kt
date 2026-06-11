@@ -22,15 +22,20 @@ sealed class ChatState {
 
 class ChatViewModel : ViewModel() {
     val messages = mutableStateListOf<Pair<String, String>>()
-    var gameTitle: String = ""
-    var summary: String = ""
+
+    private val _gameTitle = MutableStateFlow("")
+    val gameTitle: StateFlow<String> = _gameTitle.asStateFlow()
+    private var summary: String = ""
 
     private val _state = MutableStateFlow<ChatState>(ChatState.Idle)
     val state: StateFlow<ChatState> = _state.asStateFlow()
 
     fun loadGameContext(rawgId: Int) {
-        gameTitle = GameRepository.getGame(rawgId)?.name ?: ""
-        summary = GameRepository.getSummary(rawgId) ?: ""
+        viewModelScope.launch {
+            val game = GameRepository.getOrFetchGame(rawgId)
+            _gameTitle.value = game?.name ?: ""
+            summary = GameRepository.getSummary(rawgId) ?: ""
+        }
     }
 
     fun sendMessage(userMessage: String) {
@@ -42,7 +47,7 @@ class ChatViewModel : ViewModel() {
                     ChatMessage(role, content)
                 }
                 val response = RetrofitClient.api.chat(
-                    ChatRequest(userMessage, gameTitle, summary, history)
+                    ChatRequest(userMessage, _gameTitle.value, summary, history)
                 )
                 messages.add("assistant" to response.reply)
                 _state.value = ChatState.Idle

@@ -13,11 +13,43 @@ datasource db {
 }
 
 model User {
-  id         Int         @id @default(autoincrement())
-  email      String      @unique
-  password   String
-  createdAt  DateTime    @default(now())
-  savedGames SavedGame[]
+  id          Int              @id @default(autoincrement())
+  email       String           @unique
+  password    String
+  createdAt   DateTime         @default(now())
+  savedGames  SavedGame[]
+  preferences UserPreferences?
+}
+
+model UserPreferences {
+  id                 Int           @id @default(autoincrement())
+  userId             Int           @unique
+  summaryLength      SummaryLength @default(MEDIUM)
+  tone               Tone          @default(BALANCED)
+  lookOutFor         String[]      @default([])
+  allowMatureContent Boolean       @default(false)
+  fontSize           FontSize      @default(MEDIUM)
+  updatedAt          DateTime      @updatedAt
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum SummaryLength {
+  SHORT
+  MEDIUM
+  LONG
+}
+
+enum Tone {
+  CASUAL
+  BALANCED
+  CRITICAL
+  ENTHUSIASTIC
+}
+
+enum FontSize {
+  SMALL
+  MEDIUM
+  LARGE
 }
 
 model SavedGame {

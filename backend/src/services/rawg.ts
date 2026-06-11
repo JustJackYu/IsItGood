@@ -22,6 +22,30 @@ const searchGames = async (query: string): Promise<Game[]> => {
     const data = await response.json();
 
     return (data.results as Game[]).slice(0, 10);
-}
+};
 
-export { searchGames };
+const fetchGameById = async (id: number): Promise<Game> => {
+    const RAWG_API_KEY = process.env.RAWG_API_KEY;
+    if (!RAWG_API_KEY) {
+        throw new Error("RAWG API Key is missing");
+    }
+
+    const url = `https://api.rawg.io/api/games/${id}?key=${RAWG_API_KEY}`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+        throw new Error(`Failed to fetch game: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    return {
+        id: data.id,
+        name: data.name,
+        background_image: data.background_image,
+        rating: data.rating,
+        released: data.released
+    };
+};
+
+export { searchGames, fetchGameById };

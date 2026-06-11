@@ -36,4 +36,29 @@ const searchGameReviews = async (query: string): Promise<Array<{ content: string
     return results.map(result => ({ content: result.content, url: result.url }));
 }
 
-export { searchGameReviews };
+const searchWebContext = async (query: string): Promise<Array<{ content: string; url: string }>> => {
+    const TAVILY_API_KEY = process.env.TAVILY_API_KEY;
+
+    if (!TAVILY_API_KEY) {
+        throw new Error("Tavily API Key is missing");
+    }
+
+    const response = await fetch("https://api.tavily.com/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            api_key: TAVILY_API_KEY,
+            query,
+            max_results: 3,
+            search_depth: "basic"
+        })
+    });
+
+    const data = await response.json();
+    return (data.results ?? []).map((r: any) => ({
+        content: r.content,
+        url: r.url
+    }));
+};
+
+export { searchGameReviews, searchWebContext };

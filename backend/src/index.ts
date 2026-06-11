@@ -7,6 +7,7 @@ dotenv.config();
 import authRouter from './routes/auth';
 import gamesRouter from './routes/games';
 import chatRouter from './routes/chat';
+import preferencesRouter from './routes/preferences';
 
 
 const app = express();
@@ -15,6 +16,7 @@ app.use(express.json());
 app.use('/auth', authRouter);
 app.use('/games', gamesRouter);
 app.use('/chat', chatRouter);
+app.use('/preferences', preferencesRouter);
 
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', project: 'IsItGood?' });

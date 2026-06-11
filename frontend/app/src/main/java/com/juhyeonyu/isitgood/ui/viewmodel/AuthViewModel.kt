@@ -1,7 +1,9 @@
 package com.juhyeonyu.isitgood.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.juhyeonyu.isitgood.data.local.TokenStore
 import com.juhyeonyu.isitgood.data.model.AuthRequest
 import com.juhyeonyu.isitgood.data.remote.RetrofitClient
 import com.juhyeonyu.isitgood.utils.parseHttpError
@@ -18,7 +20,7 @@ sealed class AuthState {
     data class Error(val message: String) : AuthState()
 }
 
-class AuthViewModel : ViewModel() {
+class AuthViewModel(private val tokenStore: TokenStore) : ViewModel() {
     private val _state = MutableStateFlow<AuthState>(AuthState.Idle)
     val state: StateFlow<AuthState> = _state.asStateFlow()
 
@@ -41,12 +43,25 @@ class AuthViewModel : ViewModel() {
             try {
                 val response = RetrofitClient.api.login(AuthRequest(email, password))
                 RetrofitClient.token = response.token
+                tokenStore.saveToken(response.token)
                 _state.value = AuthState.Success(response.token)
             } catch (e: HttpException) {
                 _state.value = AuthState.Error(parseHttpError(e))
             } catch (e: Exception) {
                 _state.value = AuthState.Error("Something went wrong. Check your connection.")
             }
+        }
+    }
+
+    fun resetState() {
+        _state.value = AuthState.Idle
+    }
+
+    fun logout() {
+        viewModelScope.launch {
+            tokenStore.clearToken()
+            RetrofitClient.token = null
+            _state.value = AuthState.Idle
         }
     }
 
@@ -69,6 +84,7 @@ class AuthViewModel : ViewModel() {
             try {
                 val response = RetrofitClient.api.register(AuthRequest(email, password))
                 RetrofitClient.token = response.token
+                tokenStore.saveToken(response.token)
                 _state.value = AuthState.Success(response.token)
             } catch (e: HttpException) {
                 _state.value = AuthState.Error(parseHttpError(e))
@@ -77,4 +93,10 @@ class AuthViewModel : ViewModel() {
             }
         }
     }
+}
+
+// Supplies the TokenStore dependency to AuthViewModel via Compose's viewModel(factory = ...).
+class AuthViewModelFactory(private val tokenStore: TokenStore) : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T = AuthViewModel(tokenStore) as T
 }
