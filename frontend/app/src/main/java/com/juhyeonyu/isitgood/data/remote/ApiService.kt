@@ -6,10 +6,19 @@ import retrofit2.http.*
 interface ApiService {
 
     @POST("auth/register")
-    suspend fun register(@Body request: AuthRequest): AuthResponse
+    suspend fun register(@Body request: RegisterRequest): AuthResponse
 
     @POST("auth/login")
     suspend fun login(@Body request: AuthRequest): AuthResponse
+
+    @GET("auth/me")
+    suspend fun getMe(): MeResponse
+
+    @PUT("auth/username")
+    suspend fun updateUsername(@Body request: UpdateUsernameRequest): MeResponse
+
+    @POST("auth/change-password")
+    suspend fun changePassword(@Body request: ChangePasswordRequest): MessageResponse
 
     @GET("games/search")
     suspend fun searchGames(@Query("q") query: String): List<Game>
@@ -19,6 +28,12 @@ interface ApiService {
 
     @GET("games/saved")
     suspend fun getSavedGames(): List<SavedGame>
+
+    @GET("games/saved/deals")
+    suspend fun getSavedGameDeals(): List<SavedGameDeal>
+
+    @GET("games/deals")
+    suspend fun getDeals(): List<DealGame>
 
     @POST("games/save")
     suspend fun saveGame(@Body request: SaveGameRequest): SavedGame
@@ -40,4 +55,10 @@ interface ApiService {
 
     @POST("chat")
     suspend fun chat(@Body request: ChatRequest): ChatResponse
+
+    @GET("preferences")
+    suspend fun getPreferences(): UserPreferences
+
+    @PUT("preferences")
+    suspend fun updatePreferences(@Body request: UserPreferences): UserPreferences
 }

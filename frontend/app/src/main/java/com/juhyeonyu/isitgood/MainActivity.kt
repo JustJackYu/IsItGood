@@ -19,6 +19,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,25 +37,34 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.juhyeonyu.isitgood.data.local.TokenStore
+import com.juhyeonyu.isitgood.data.local.UiPreferencesStore
 import com.juhyeonyu.isitgood.data.remote.RetrofitClient
 import com.juhyeonyu.isitgood.ui.screens.*
 import com.juhyeonyu.isitgood.ui.theme.Cerulean
 import com.juhyeonyu.isitgood.ui.theme.CoolSteel
 import com.juhyeonyu.isitgood.ui.theme.IsItGoodTheme
 import com.juhyeonyu.isitgood.ui.theme.Platinum
+import com.juhyeonyu.isitgood.ui.theme.fontScaleFor
 import com.juhyeonyu.isitgood.ui.viewmodel.AuthViewModel
 import com.juhyeonyu.isitgood.ui.viewmodel.AuthViewModelFactory
 import com.juhyeonyu.isitgood.ui.viewmodel.HomeViewModel
 import com.juhyeonyu.isitgood.ui.viewmodel.SearchViewModel
+import com.juhyeonyu.isitgood.ui.viewmodel.SettingsViewModel
+import com.juhyeonyu.isitgood.ui.viewmodel.SettingsViewModelFactory
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            IsItGoodTheme {
-                val context = LocalContext.current
-                val tokenStore = remember { TokenStore(context.applicationContext) }
+            val context = LocalContext.current
+            val tokenStore = remember { TokenStore(context.applicationContext) }
+            val uiPreferencesStore = remember { UiPreferencesStore(context.applicationContext) }
 
+            // Locally cached font size drives the theme instantly at launch (no network needed).
+            val fontSize by uiPreferencesStore.fontSizeFlow
+                .collectAsState(initial = UiPreferencesStore.DEFAULT_FONT_SIZE)
+
+            IsItGoodTheme(fontScale = fontScaleFor(fontSize)) {
                 // null = still deciding; resolves to "home" (auto-login) or "login".
                 var startDestination by remember { mutableStateOf<String?>(null) }
 
@@ -79,7 +89,11 @@ class MainActivity : ComponentActivity() {
                         CircularProgressIndicator(color = Cerulean)
                     }
                 } else {
-                    AppNavigation(startDestination = dest, tokenStore = tokenStore)
+                    AppNavigation(
+                        startDestination = dest,
+                        tokenStore = tokenStore,
+                        uiPreferencesStore = uiPreferencesStore
+                    )
                 }
             }
         }
@@ -101,11 +115,17 @@ private val bottomNavItems = listOf(
 private val bottomBarRoutes = bottomNavItems.map { it.route }.toSet()
 
 @Composable
-fun AppNavigation(startDestination: String, tokenStore: TokenStore) {
+fun AppNavigation(
+    startDestination: String,
+    tokenStore: TokenStore,
+    uiPreferencesStore: UiPreferencesStore
+) {
     val navController = rememberNavController()
     val authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory(tokenStore))
     val homeViewModel: HomeViewModel = viewModel()
     val searchViewModel: SearchViewModel = viewModel()
+    val settingsViewModel: SettingsViewModel =
+        viewModel(factory = SettingsViewModelFactory(uiPreferencesStore))
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -168,6 +188,8 @@ fun AppNavigation(startDestination: String, tokenStore: TokenStore) {
 
             composable("settings") {
                 SettingsScreen(
+                    viewModel = settingsViewModel,
+                    authViewModel = authViewModel,
                     onLogout = {
                         authViewModel.logout()
                         navController.navigate("login") {
