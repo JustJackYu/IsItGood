@@ -38,6 +38,7 @@ fun LoginScreen(
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var isRegistering by remember { mutableStateOf(false) }
     val state by viewModel.state.collectAsState()
@@ -114,6 +115,19 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                if (registering) {
+                    OutlinedTextField(
+                        value = username,
+                        onValueChange = { username = it },
+                        label = { Text("Username") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
@@ -151,7 +165,7 @@ fun LoginScreen(
 
                 Button(
                     onClick = {
-                        if (registering) viewModel.register(email, password)
+                        if (registering) viewModel.register(email, password, username)
                         else viewModel.login(email, password)
                     },
                     enabled = state !is AuthState.Loading,

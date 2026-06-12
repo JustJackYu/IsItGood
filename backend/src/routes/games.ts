@@ -4,6 +4,7 @@ import { searchGameReviews } from "../services/tavily";
 import { summarizeGameReviews } from "../services/gemini";
 import { GameSummary } from "../services/gemini";
 import { getGamePrices } from "../services/itad";
+import { getPopularDeals, getDealsForSavedGames } from "../services/deals";
 import authMiddleware from "../middleware/auth";
 import { getEffectivePreferences } from "../services/preferences";
 import prisma from "../prisma/client";
@@ -27,6 +28,21 @@ router.get("/saved", authMiddleware, async (req: AuthRequest, res: Response) => 
         return res.json(savedGames);
     } catch (error) {
         console.error("Error fetching saved games:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+router.get("/saved/deals", authMiddleware, async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.user!.id;
+        const savedGames = await prisma.savedGame.findMany({
+            where: { userId },
+            select: { rawgId: true, title: true }
+        });
+        const deals = await getDealsForSavedGames(savedGames);
+        return res.json(deals);
+    } catch (error) {
+        console.error("Error fetching saved game deals:", error);
         return res.status(500).json({ message: "Internal server error" });
     }
 });
@@ -83,6 +99,17 @@ router.get("/search", async (req: Request, res: Response) => {
         return res.json(games);
     } catch (error) {
         console.error("Error searching games:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+// Popular games currently on a steep (>=50%) sale. Must stay above the "/:id" catch-all.
+router.get("/deals", async (_req: Request, res: Response) => {
+    try {
+        const deals = await getPopularDeals();
+        return res.json(deals);
+    } catch (error) {
+        console.error("Error fetching popular deals:", error);
         return res.status(500).json({ message: "Internal server error" });
     }
 });

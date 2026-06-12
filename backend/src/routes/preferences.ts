@@ -6,6 +6,7 @@ import {
     SUMMARY_LENGTHS,
     TONES,
     FONT_SIZES,
+    DEAL_DISPLAYS,
 } from "../services/preferences";
 
 interface AuthRequest extends Request {
@@ -31,7 +32,10 @@ router.get("/", authMiddleware, async (req: AuthRequest, res: Response) => {
 router.put("/", authMiddleware, async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user!.id;
-        const { summaryLength, tone, lookOutFor, allowMatureContent, fontSize } = req.body;
+        const {
+            summaryLength, tone, lookOutFor, allowMatureContent, fontSize,
+            dealDisplay, saleAlertDiscount, saleAlertPrice,
+        } = req.body;
 
         const data: Record<string, unknown> = {};
 
@@ -68,6 +72,29 @@ router.put("/", authMiddleware, async (req: AuthRequest, res: Response) => {
                 return res.status(400).json({ message: "allowMatureContent must be a boolean" });
             }
             data.allowMatureContent = allowMatureContent;
+        }
+
+        if (dealDisplay !== undefined) {
+            if (!DEAL_DISPLAYS.includes(dealDisplay)) {
+                return res.status(400).json({ message: "Invalid dealDisplay" });
+            }
+            data.dealDisplay = dealDisplay;
+        }
+
+        // Thresholds accept null (to clear the alert) or a non-negative number.
+        if (saleAlertDiscount !== undefined) {
+            if (saleAlertDiscount !== null &&
+                (typeof saleAlertDiscount !== "number" || saleAlertDiscount < 0 || saleAlertDiscount > 100)) {
+                return res.status(400).json({ message: "saleAlertDiscount must be null or a number between 0 and 100" });
+            }
+            data.saleAlertDiscount = saleAlertDiscount;
+        }
+
+        if (saleAlertPrice !== undefined) {
+            if (saleAlertPrice !== null && (typeof saleAlertPrice !== "number" || saleAlertPrice < 0)) {
+                return res.status(400).json({ message: "saleAlertPrice must be null or a non-negative number" });
+            }
+            data.saleAlertPrice = saleAlertPrice;
         }
 
         const prefs = await prisma.userPreferences.upsert({

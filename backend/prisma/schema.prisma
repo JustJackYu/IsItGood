@@ -15,6 +15,7 @@ datasource db {
 model User {
   id          Int              @id @default(autoincrement())
   email       String           @unique
+  username    String?
   password    String
   createdAt   DateTime         @default(now())
   savedGames  SavedGame[]
@@ -29,6 +30,9 @@ model UserPreferences {
   lookOutFor         String[]      @default([])
   allowMatureContent Boolean       @default(false)
   fontSize           FontSize      @default(MEDIUM)
+  dealDisplay        DealDisplay   @default(BOTH)
+  saleAlertDiscount  Int?
+  saleAlertPrice     Float?
   updatedAt          DateTime      @updatedAt
   user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -50,6 +54,12 @@ enum FontSize {
   SMALL
   MEDIUM
   LARGE
+}
+
+enum DealDisplay {
+  PRICE
+  DISCOUNT
+  BOTH
 }
 
 model SavedGame {
