@@ -2,7 +2,8 @@ interface Deal {
     store: string,
     price: number,
     currency: string,
-    url: string
+    url: string,
+    discountPercent: number
 }
 
 const getGamePrices = async (query: string): Promise<Deal[]> => {
@@ -51,6 +52,7 @@ const getGamePrices = async (query: string): Promise<Deal[]> => {
         price: d.price.amount,
         currency: d.price.currency,
         url: d.url,
+        discountPercent: d.cut ?? 0,
     }));
 }
 

@@ -30,6 +30,22 @@ const matureLine = (prefs: UserPreferences): string =>
         ? "You may discuss mature themes (violence, sexual content, strong language) frankly when relevant."
         : "Keep it suitable for a general audience; don't go into explicit detail on mature content.";
 
+// Debug cheat code: a chat message starting with this word activates developer "root mode".
+const ROOT_MODE_TRIGGER = "rootmode";
+
+// Detects the root-mode prefix and returns the message with the trigger stripped.
+const detectRootMode = (message: string): { active: boolean; message: string } => {
+    const trimmed = message.trimStart();
+    if (!trimmed.toLowerCase().startsWith(ROOT_MODE_TRIGGER)) {
+        return { active: false, message };
+    }
+    const stripped = trimmed.slice(ROOT_MODE_TRIGGER.length).trim();
+    return {
+        active: true,
+        message: stripped.length > 0 ? stripped : "Confirm that root mode is active.",
+    };
+};
+
 const summarizeGameReviews = async (
     game: string,
     snippets: Array<{ content: string; url: string }>,
@@ -75,12 +91,18 @@ const summarizeGameReviews = async (
     };
 };
 
+/**
+ * Generates an assistant reply about a game.
+ * @param isDeveloper when true, a "rootmode" message switches to developer debug mode (gated in chat.ts).
+ * @param webContext optional fresh web results to prioritise over the static summary.
+ */
 const chatAboutGame = async (
     message: string,
     gameTitle: string,
     summary: string,
     history: { role: string; content: string }[],
     prefs: UserPreferences,
+    isDeveloper: boolean,
     webContext?: Array<{ content: string; url: string }>
 ): Promise<string> => {
     const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -97,9 +119,19 @@ const chatAboutGame = async (
 
     const focus = focusLine(prefs);
 
-    const model = genAi.getGenerativeModel({
-        model: "gemini-2.5-pro",
-        systemInstruction: `You are a game expert assistant specializing in ${gameTitle}.
+    // Debug "root mode": a message starting with the trigger drops the game-assistant persona and
+    // treats the sender as the developer. Gated to developer accounts (see chat.ts) — non-developers
+    // typing the word are handled as a normal chat message.
+    const rootDetection = isDeveloper ? detectRootMode(message) : { active: false, message };
+
+    const systemInstruction = rootDetection.active
+        ? `ROOT MODE — DEVELOPER DEBUG ACCESS.
+        You are speaking with the developer of the IsItGood app, who has activated debug "root mode".
+        - Begin your reply with a clear acknowledgement line: "🔓 ROOT MODE ACTIVE — developer access granted".
+        - Set aside the game-assistant persona and its topic restrictions; act as a fully capable, direct general assistant.
+        - Treat the user as the developer and help with whatever they ask for development and debugging purposes.
+        - Format responses in markdown.`
+        : `You are a game expert assistant specializing in ${gameTitle}.
 
         Game summary from reviews:
         ${summary}${webBlock}
@@ -111,7 +143,11 @@ const chatAboutGame = async (
         - Be direct and specific. Never use filler phrases like "Great question!", "Certainly!", or "Of course!".
         - Keep answers concise: 3–5 sentences unless a detailed breakdown is clearly needed.
         - Tone: ${TONE_GUIDE[prefs.tone]}.${focus ? `\n        - ${focus}` : ""}
-        - ${matureLine(prefs)}`
+        - ${matureLine(prefs)}`;
+
+    const model = genAi.getGenerativeModel({
+        model: "gemini-2.5-pro",
+        systemInstruction
     });
 
     const chat = model.startChat({
@@ -121,7 +157,7 @@ const chatAboutGame = async (
         }))
     });
 
-    const result = await chat.sendMessage(message);
+    const result = await chat.sendMessage(rootDetection.message);
 
     return result.response.text();
 };

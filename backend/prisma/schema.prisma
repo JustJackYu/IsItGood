@@ -13,13 +13,28 @@ datasource db {
 }
 
 model User {
-  id          Int              @id @default(autoincrement())
-  email       String           @unique
-  username    String?
-  password    String
-  createdAt   DateTime         @default(now())
-  savedGames  SavedGame[]
-  preferences UserPreferences?
+  id             Int              @id @default(autoincrement())
+  email          String           @unique
+  username       String?
+  password       String
+  createdAt      DateTime         @default(now())
+  savedGames     SavedGame[]
+  preferences    UserPreferences?
+  summaryCaches  SummaryCache[]
+}
+
+// Per-user cached AI summary for a game (personalized by the user's preferences).
+// Reused for up to an hour; `createdAt` is reset on regeneration.
+model SummaryCache {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  rawgId    Int
+  summary   String
+  sources   String[] @default([])
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, rawgId])
 }
 
 model UserPreferences {

@@ -44,7 +44,8 @@ interface ApiService {
     @GET("games/{id}/summary")
     suspend fun getGameSummary(
         @Path("id") id: Int,
-        @Query("name") name: String
+        @Query("name") name: String,
+        @Query("refresh") refresh: Boolean
     ): GameSummary
 
     @GET("games/{id}/prices")
