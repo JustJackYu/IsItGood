@@ -75,11 +75,16 @@ class GameDetailViewModel : ViewModel() {
         }
     }
 
-    fun loadSummary(id: Int, name: String) {
+    fun loadSummary(id: Int, name: String) = fetchSummary(id, name, refresh = false)
+
+    // Forces a fresh summary, bypassing the server's 1-hour cache.
+    fun regenerateSummary(id: Int, name: String) = fetchSummary(id, name, refresh = true)
+
+    private fun fetchSummary(id: Int, name: String, refresh: Boolean) {
         viewModelScope.launch {
             _summaryState.value = SummaryState.Loading
             try {
-                val summary = RetrofitClient.api.getGameSummary(id, name)
+                val summary = RetrofitClient.api.getGameSummary(id, name, refresh)
                 GameRepository.cacheSummary(id, summary.summary)
                 _summaryState.value = SummaryState.Success(summary.summary, summary.sources)
             } catch (e: Exception) {

@@ -1,10 +1,8 @@
 import { Router, Request, Response } from "express";
 import { searchGames, fetchGameById } from "../services/rawg";
-import { searchGameReviews } from "../services/tavily";
-import { summarizeGameReviews } from "../services/gemini";
-import { GameSummary } from "../services/gemini";
 import { getGamePrices } from "../services/itad";
 import { getPopularDeals, getDealsForSavedGames } from "../services/deals";
+import { getOrCreateSummary } from "../services/summary";
 import authMiddleware from "../middleware/auth";
 import { getEffectivePreferences } from "../services/preferences";
 import prisma from "../prisma/client";
@@ -116,14 +114,18 @@ router.get("/deals", async (_req: Request, res: Response) => {
 
 router.get("/:id/summary", authMiddleware, async (req: AuthRequest, res: Response) => {
     try {
-        const id = req.params.id;
+        const id = req.params["id"] as string;
         const gameName = req.query.name as string;
+        const refresh = req.query.refresh === "true";
         if (!id || !gameName) {
             return res.status(400).json({ message: "Game ID and name are required" });
         }
+        const rawgId = parseInt(id);
+        if (isNaN(rawgId)) {
+            return res.status(400).json({ message: "Invalid game ID" });
+        }
         const prefs = await getEffectivePreferences(req.user!.id);
-        const reviews = await searchGameReviews(gameName);
-        const summary = await summarizeGameReviews(gameName, reviews, prefs);
+        const summary = await getOrCreateSummary(req.user!.id, rawgId, gameName, prefs, refresh);
         return res.json(summary);
     } catch (error) {
         console.error("Error summarizing game reviews:", error);

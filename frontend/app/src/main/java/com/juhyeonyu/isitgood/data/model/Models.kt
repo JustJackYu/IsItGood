@@ -21,7 +21,12 @@ data class Game(
 
 data class GameSummary(val summary: String, val sources: List<String>)
 
-data class Deal(val store: String, val price: Double, val url: String)
+data class Deal(
+    val store: String,
+    val price: Double,
+    val url: String,
+    val discountPercent: Int = 0
+)
 
 // Saved games
 data class SavedGame(

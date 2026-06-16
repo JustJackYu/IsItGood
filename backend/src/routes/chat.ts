@@ -13,6 +13,16 @@ interface AuthRequest extends Request {
 
 const router = Router();
 
+// Only these accounts may trigger the "rootmode" debug cheat. Read at call time so the env var
+// is populated (top-level reads run before dotenv.config() due to import hoisting).
+const isDeveloperEmail = (email: string): boolean => {
+    const developers = (process.env.DEVELOPER_EMAILS ?? "")
+        .split(",")
+        .map(e => e.trim().toLowerCase())
+        .filter(Boolean);
+    return developers.includes(email.toLowerCase());
+};
+
 router.post("/", authMiddleware, async (req: AuthRequest, res: Response) => {
     const { message, gameTitle, summary, history } = req.body;
 
@@ -34,7 +44,8 @@ router.post("/", authMiddleware, async (req: AuthRequest, res: Response) => {
             console.warn("Web search failed, continuing without web context:", e);
         }
 
-        const response = await chatAboutGame(message, gameTitle, summary, history, prefs, webContext);
+        const isDeveloper = isDeveloperEmail(req.user!.email);
+        const response = await chatAboutGame(message, gameTitle, summary, history, prefs, isDeveloper, webContext);
         return res.json({ reply: response });
     } catch (error) {
         console.error("Error chatting about game:", error);
