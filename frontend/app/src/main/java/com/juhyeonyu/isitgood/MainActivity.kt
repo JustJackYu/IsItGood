@@ -111,8 +111,10 @@ private val bottomNavItems = listOf(
     BottomNavItem("settings", "Settings", Icons.Filled.Person)
 )
 
-// Routes that should display the bottom navigation bar.
-private val bottomBarRoutes = bottomNavItems.map { it.route }.toSet()
+// Routes that should display the bottom navigation bar: the tabs plus the detail and chat screens.
+private fun showsBottomBar(route: String?): Boolean =
+    route == "home" || route == "settings" ||
+        route?.startsWith("detail/") == true || route?.startsWith("chat/") == true
 
 @Composable
 fun AppNavigation(
@@ -132,7 +134,7 @@ fun AppNavigation(
 
     Scaffold(
         bottomBar = {
-            if (currentRoute in bottomBarRoutes) {
+            if (showsBottomBar(currentRoute)) {
                 NavigationBar(containerColor = Color.White) {
                     bottomNavItems.forEach { item ->
                         NavigationBarItem(
