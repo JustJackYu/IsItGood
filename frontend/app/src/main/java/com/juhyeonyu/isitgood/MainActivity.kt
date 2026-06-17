@@ -2,6 +2,7 @@ package com.juhyeonyu.isitgood
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -10,13 +11,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -28,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -60,9 +65,9 @@ class MainActivity : ComponentActivity() {
             val tokenStore = remember { TokenStore(context.applicationContext) }
             val uiPreferencesStore = remember { UiPreferencesStore(context.applicationContext) }
 
-            // Locally cached font size drives the theme instantly at launch (no network needed).
-            val fontSize by uiPreferencesStore.fontSizeFlow
-                .collectAsState(initial = UiPreferencesStore.DEFAULT_FONT_SIZE)
+            // Locally cached font size drives the theme; seeded from disk, then updated live.
+            LaunchedEffect(uiPreferencesStore) { uiPreferencesStore.loadFontSize() }
+            val fontSize by uiPreferencesStore.fontSize.collectAsState()
 
             IsItGoodTheme(fontScale = fontScaleFor(fontSize)) {
                 // null = still deciding; resolves to "home" (auto-login) or "login".
@@ -106,6 +111,14 @@ private data class BottomNavItem(
     val icon: ImageVector
 )
 
+// A pending "leave this screen?" confirmation: shown when leaving a guarded screen.
+private data class LeavePrompt(
+    val title: String,
+    val message: String,
+    val confirmLabel: String,
+    val proceed: () -> Unit
+)
+
 private val bottomNavItems = listOf(
     BottomNavItem("home", "Home", Icons.Filled.Home),
     BottomNavItem("settings", "Settings", Icons.Filled.Person)
@@ -131,6 +144,52 @@ fun AppNavigation(
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val onChat = currentRoute?.startsWith("chat/") == true
+    val onSettings = currentRoute == "settings"
+    val settingsDirty by settingsViewModel.isDirty.collectAsState()
+
+    // Chat-leave warning, refreshed each time we enter the chat screen. Defaults to on.
+    var chatLeaveWarning by remember { mutableStateOf(true) }
+    LaunchedEffect(onChat) {
+        if (onChat) {
+            try {
+                chatLeaveWarning = RetrofitClient.api.getPreferences().chatLeaveWarning
+            } catch (e: Exception) {
+                // Keep the default (warn) if preferences can't be loaded.
+            }
+        }
+    }
+
+    // Navigation deferred until the user confirms leaving a guarded screen.
+    var pendingLeave by remember { mutableStateOf<LeavePrompt?>(null) }
+
+    val chatGuard = onChat && chatLeaveWarning
+    val settingsGuard = onSettings && settingsDirty // unsaved preference edits
+
+    // Guards every way out (back gesture, back arrow, tab taps): runs immediately unless the
+    // current screen needs confirmation first.
+    fun requestLeave(proceed: () -> Unit) {
+        when {
+            chatGuard -> pendingLeave = LeavePrompt(
+                title = "Leave chat?",
+                message = "This chat session will be gone once you leave.",
+                confirmLabel = "Leave",
+                proceed = proceed
+            )
+            settingsGuard -> pendingLeave = LeavePrompt(
+                title = "Unsaved changes",
+                message = "You have unsaved changes that will be lost if you leave.",
+                confirmLabel = "Discard",
+                proceed = proceed
+            )
+            else -> proceed()
+        }
+    }
+
+    // Intercept the system back gesture on guarded screens.
+    BackHandler(enabled = chatGuard || settingsGuard) {
+        requestLeave { navController.popBackStack() }
+    }
 
     Scaffold(
         bottomBar = {
@@ -140,10 +199,15 @@ fun AppNavigation(
                         NavigationBarItem(
                             selected = currentRoute == item.route,
                             onClick = {
-                                navController.navigate(item.route) {
-                                    // Keep "home" as the anchor; tabs never stack on each other.
-                                    popUpTo("home")
-                                    launchSingleTop = true
+                                // Tapping the current tab is a no-op (and shouldn't prompt to leave).
+                                if (currentRoute != item.route) {
+                                    requestLeave {
+                                        navController.navigate(item.route) {
+                                            // Keep "home" as the anchor; tabs never stack on each other.
+                                            popUpTo("home")
+                                            launchSingleTop = true
+                                        }
+                                    }
                                 }
                             },
                             icon = { Icon(item.icon, contentDescription = item.label) },
@@ -197,6 +261,12 @@ fun AppNavigation(
                         navController.navigate("login") {
                             popUpTo(navController.graph.id) { inclusive = true }
                         }
+                    },
+                    onAccountDeleted = {
+                        // Session already cleared by deleteAccount(); just return to login.
+                        navController.navigate("login") {
+                            popUpTo(navController.graph.id) { inclusive = true }
+                        }
                     }
                 )
             }
@@ -233,8 +303,46 @@ fun AppNavigation(
                 )
             ) { backStackEntry ->
                 val rawgId = backStackEntry.arguments?.getInt("rawgId") ?: 0
-                ChatScreen(rawgId = rawgId)
+                ChatScreen(
+                    rawgId = rawgId,
+                    onBack = { requestLeave { navController.popBackStack() } }
+                )
             }
+        }
+
+        pendingLeave?.let { prompt ->
+            AlertDialog(
+                onDismissRequest = { pendingLeave = null },
+                containerColor = Color.White,
+                title = {
+                    Text(
+                        text = prompt.title,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Cerulean
+                        )
+                    )
+                },
+                text = {
+                    Text(
+                        text = prompt.message,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        pendingLeave = null
+                        prompt.proceed()
+                    }) {
+                        Text(prompt.confirmLabel, color = Cerulean, fontWeight = FontWeight.SemiBold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingLeave = null }) {
+                        Text("Cancel", color = CoolSteel)
+                    }
+                }
+            )
         }
     }
 }

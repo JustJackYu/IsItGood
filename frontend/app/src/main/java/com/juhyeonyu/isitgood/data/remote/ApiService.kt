@@ -17,6 +17,9 @@ interface ApiService {
     @PUT("auth/username")
     suspend fun updateUsername(@Body request: UpdateUsernameRequest): MeResponse
 
+    @DELETE("auth/account")
+    suspend fun deleteAccount(@Query("confirmUsername") confirmUsername: String): MessageResponse
+
     @POST("auth/change-password")
     suspend fun changePassword(@Body request: ChangePasswordRequest): MessageResponse
 

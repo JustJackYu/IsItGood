@@ -9,6 +9,7 @@ export interface UserPreferences {
     dealDisplay: "PRICE" | "DISCOUNT" | "BOTH";
     saleAlertDiscount: number | null;
     saleAlertPrice: number | null;
+    chatLeaveWarning: boolean;
 }
 
 export const SUMMARY_LENGTHS: UserPreferences["summaryLength"][] = ["SHORT", "MEDIUM", "LONG"];
@@ -25,6 +26,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
     dealDisplay: "BOTH",
     saleAlertDiscount: null,
     saleAlertPrice: null,
+    chatLeaveWarning: true,
 };
 
 // Returns the user's stored preferences, or sensible defaults if they haven't set any yet.
@@ -41,5 +43,6 @@ export const getEffectivePreferences = async (userId: number): Promise<UserPrefe
         dealDisplay: prefs.dealDisplay,
         saleAlertDiscount: prefs.saleAlertDiscount,
         saleAlertPrice: prefs.saleAlertPrice,
+        chatLeaveWarning: prefs.chatLeaveWarning,
     };
 };

@@ -37,11 +37,22 @@ class SettingsViewModel(private val uiPreferencesStore: UiPreferencesStore) : Vi
     private val _saveState = MutableStateFlow<PreferencesSaveState>(PreferencesSaveState.Idle)
     val saveState: StateFlow<PreferencesSaveState> = _saveState.asStateFlow()
 
+    // Last loaded/saved baseline; `isDirty` is true while the working copy differs from it.
+    private var savedSnapshot = UserPreferences()
+    private val _isDirty = MutableStateFlow(false)
+    val isDirty: StateFlow<Boolean> = _isDirty.asStateFlow()
+
+    private fun recomputeDirty() {
+        _isDirty.value = _prefs.value != savedSnapshot
+    }
+
     fun load() {
         viewModelScope.launch {
             _loadState.value = PreferencesLoadState.Loading
             try {
                 _prefs.value = RetrofitClient.api.getPreferences()
+                savedSnapshot = _prefs.value
+                recomputeDirty()
                 // Sync the local render cache so the whole app matches the stored font size.
                 uiPreferencesStore.saveFontSize(_prefs.value.fontSize)
                 _loadState.value = PreferencesLoadState.Loaded
@@ -57,11 +68,9 @@ class SettingsViewModel(private val uiPreferencesStore: UiPreferencesStore) : Vi
     fun setTone(value: String) = edit { it.copy(tone = value) }
     fun setMatureContent(allowed: Boolean) = edit { it.copy(allowMatureContent = allowed) }
 
-    fun setFontSize(value: String) {
-        edit { it.copy(fontSize = value) }
-        // Live preview — apply to the local render cache immediately so the whole app rescales now.
-        viewModelScope.launch { uiPreferencesStore.saveFontSize(value) }
-    }
+    // Only updates the pending selection — the app-wide font size is committed in save().
+    // The Settings screen previews this pending value via its own density override.
+    fun setFontSize(value: String) = edit { it.copy(fontSize = value) }
     fun toggleLookOutFor(item: String) = edit {
         val current = it.lookOutFor
         it.copy(lookOutFor = if (item in current) current - item else current + item)
@@ -70,10 +79,12 @@ class SettingsViewModel(private val uiPreferencesStore: UiPreferencesStore) : Vi
     fun setDealDisplay(value: String) = edit { it.copy(dealDisplay = value) }
     fun setSaleAlertDiscount(value: Int?) = edit { it.copy(saleAlertDiscount = value) }
     fun setSaleAlertPrice(value: Double?) = edit { it.copy(saleAlertPrice = value) }
+    fun setChatLeaveWarning(enabled: Boolean) = edit { it.copy(chatLeaveWarning = enabled) }
 
     // Applies a local edit and clears any stale "Saved"/"Error" status so the UI shows unsaved changes.
     private fun edit(transform: (UserPreferences) -> UserPreferences) {
         _prefs.value = transform(_prefs.value)
+        recomputeDirty()
         if (_saveState.value !is PreferencesSaveState.Saving) {
             _saveState.value = PreferencesSaveState.Idle
         }
@@ -84,6 +95,8 @@ class SettingsViewModel(private val uiPreferencesStore: UiPreferencesStore) : Vi
             _saveState.value = PreferencesSaveState.Saving
             try {
                 _prefs.value = RetrofitClient.api.updatePreferences(_prefs.value)
+                savedSnapshot = _prefs.value
+                recomputeDirty()
                 // Apply the new font size app-wide via the local render cache.
                 uiPreferencesStore.saveFontSize(_prefs.value.fontSize)
                 _saveState.value = PreferencesSaveState.Saved

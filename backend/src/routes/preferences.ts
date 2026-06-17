@@ -34,7 +34,7 @@ router.put("/", authMiddleware, async (req: AuthRequest, res: Response) => {
         const userId = req.user!.id;
         const {
             summaryLength, tone, lookOutFor, allowMatureContent, fontSize,
-            dealDisplay, saleAlertDiscount, saleAlertPrice,
+            dealDisplay, saleAlertDiscount, saleAlertPrice, chatLeaveWarning,
         } = req.body;
 
         const data: Record<string, unknown> = {};
@@ -72,6 +72,13 @@ router.put("/", authMiddleware, async (req: AuthRequest, res: Response) => {
                 return res.status(400).json({ message: "allowMatureContent must be a boolean" });
             }
             data.allowMatureContent = allowMatureContent;
+        }
+
+        if (chatLeaveWarning !== undefined) {
+            if (typeof chatLeaveWarning !== "boolean") {
+                return res.status(400).json({ message: "chatLeaveWarning must be a boolean" });
+            }
+            data.chatLeaveWarning = chatLeaveWarning;
         }
 
         if (dealDisplay !== undefined) {

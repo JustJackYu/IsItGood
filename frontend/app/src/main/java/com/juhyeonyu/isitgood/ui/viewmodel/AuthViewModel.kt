@@ -37,6 +37,13 @@ sealed class UsernameState {
     data class Error(val message: String) : UsernameState()
 }
 
+sealed class DeleteAccountState {
+    object Idle : DeleteAccountState()
+    object Loading : DeleteAccountState()
+    object Success : DeleteAccountState()
+    data class Error(val message: String) : DeleteAccountState()
+}
+
 class AuthViewModel(private val tokenStore: TokenStore) : ViewModel() {
     private val _state = MutableStateFlow<AuthState>(AuthState.Idle)
     val state: StateFlow<AuthState> = _state.asStateFlow()
@@ -147,6 +154,30 @@ class AuthViewModel(private val tokenStore: TokenStore) : ViewModel() {
 
     fun resetUsernameState() {
         _usernameState.value = UsernameState.Idle
+    }
+
+    private val _deleteAccountState = MutableStateFlow<DeleteAccountState>(DeleteAccountState.Idle)
+    val deleteAccountState: StateFlow<DeleteAccountState> = _deleteAccountState.asStateFlow()
+
+    fun deleteAccount(confirmUsername: String) {
+        viewModelScope.launch {
+            _deleteAccountState.value = DeleteAccountState.Loading
+            try {
+                RetrofitClient.api.deleteAccount(confirmUsername.trim())
+                // Account is gone — clear the session like a logout.
+                tokenStore.clearToken()
+                RetrofitClient.token = null
+                _deleteAccountState.value = DeleteAccountState.Success
+            } catch (e: HttpException) {
+                _deleteAccountState.value = DeleteAccountState.Error(parseHttpError(e))
+            } catch (e: Exception) {
+                _deleteAccountState.value = DeleteAccountState.Error("Couldn't delete account. Check your connection.")
+            }
+        }
+    }
+
+    fun resetDeleteAccountState() {
+        _deleteAccountState.value = DeleteAccountState.Idle
     }
 
     fun register(email: String, password: String, username: String) {

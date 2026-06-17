@@ -6,6 +6,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,7 +27,7 @@ import com.juhyeonyu.isitgood.ui.viewmodel.ChatState
 import com.juhyeonyu.isitgood.ui.viewmodel.ChatViewModel
 
 @Composable
-fun ChatScreen(rawgId: Int) {
+fun ChatScreen(rawgId: Int, onBack: () -> Unit) {
     val chatViewModel: ChatViewModel = viewModel()
     var message by remember { mutableStateOf("") }
     val messages = chatViewModel.messages
@@ -59,22 +61,32 @@ fun ChatScreen(rawgId: Int) {
                     color = Cerulean,
                     shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
                 )
-                .padding(horizontal = 20.dp, vertical = 18.dp)
+                .padding(horizontal = 8.dp, vertical = 12.dp)
         ) {
-            Column {
-                Text(
-                    text = "Chat",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back to game",
+                        tint = Color.White
                     )
-                )
-                if (gameTitle.isNotBlank()) {
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+                Column {
                     Text(
-                        text = gameTitle,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = PacificBlue
+                        text = "Chat",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
                     )
+                    if (gameTitle.isNotBlank()) {
+                        Text(
+                            text = gameTitle,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = PacificBlue
+                        )
+                    }
                 }
             }
         }
