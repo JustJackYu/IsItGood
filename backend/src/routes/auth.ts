@@ -180,4 +180,32 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
     }
 })
 
+router.delete('/account', authMiddleware, async (req: AuthRequest, res: Response) => {
+    const confirmUsername = req.query.confirmUsername as string | undefined
+
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id: req.user!.id },
+            select: { id: true, username: true }
+        })
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' })
+        }
+
+        // Require the typed username to match exactly — guards against accidental deletion.
+        if (!user.username || confirmUsername !== user.username) {
+            return res.status(400).json({ message: 'Username confirmation does not match' })
+        }
+
+        // SavedGame has no cascade; remove it first. Preferences + summary caches cascade on user delete.
+        await prisma.savedGame.deleteMany({ where: { userId: user.id } })
+        await prisma.user.delete({ where: { id: user.id } })
+
+        return res.status(200).json({ message: 'Account deleted' })
+    } catch (error) {
+        console.error('Error deleting account:', error)
+        return res.status(500).json({ message: 'Internal Server Error' })
+    }
+})
+
 export default router

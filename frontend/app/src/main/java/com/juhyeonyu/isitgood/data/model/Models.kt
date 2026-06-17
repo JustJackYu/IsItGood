@@ -68,7 +68,8 @@ data class UserPreferences(
     val fontSize: String = "MEDIUM",
     val dealDisplay: String = "BOTH",
     val saleAlertDiscount: Int? = null,
-    val saleAlertPrice: Double? = null
+    val saleAlertPrice: Double? = null,
+    val chatLeaveWarning: Boolean = true
 )
 
 // Deals

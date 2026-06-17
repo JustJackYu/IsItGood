@@ -4,7 +4,10 @@ import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 // Local cache of display preferences so they apply instantly at launch, before any network call.
@@ -17,10 +20,20 @@ class UiPreferencesStore(private val context: Context) {
         const val DEFAULT_FONT_SIZE = "MEDIUM"
     }
 
-    val fontSizeFlow: Flow<String> =
-        context.uiDataStore.data.map { it[FONT_SIZE_KEY] ?: DEFAULT_FONT_SIZE }
+    // In-memory source of truth for the theme. Updated synchronously so a font-size change
+    // recomposes the theme instantly, rather than waiting on a DataStore round-trip.
+    private val _fontSize = MutableStateFlow(DEFAULT_FONT_SIZE)
+    val fontSize: StateFlow<String> = _fontSize.asStateFlow()
+
+    // Seeds the in-memory value from disk; call once at startup.
+    suspend fun loadFontSize() {
+        _fontSize.value = context.uiDataStore.data
+            .map { it[FONT_SIZE_KEY] ?: DEFAULT_FONT_SIZE }
+            .first()
+    }
 
     suspend fun saveFontSize(fontSize: String) {
-        context.uiDataStore.edit { it[FONT_SIZE_KEY] = fontSize }
+        _fontSize.value = fontSize                                   // instant for the theme
+        context.uiDataStore.edit { it[FONT_SIZE_KEY] = fontSize }    // persist for next launch
     }
 }
