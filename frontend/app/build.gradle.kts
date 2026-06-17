@@ -19,12 +19,18 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Emulator → local backend.
+            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:3000/\"")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // TODO: replace with the deployed Railway HTTPS URL (keep the trailing slash).
+            buildConfigField("String", "BASE_URL", "\"https://REPLACE-WITH-RAILWAY-URL/\"")
         }
     }
     compileOptions {
@@ -36,6 +42,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

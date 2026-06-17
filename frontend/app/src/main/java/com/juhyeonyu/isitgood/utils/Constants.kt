@@ -1,7 +1,9 @@
 package com.juhyeonyu.isitgood.utils
 
+import com.juhyeonyu.isitgood.BuildConfig
+
 object Constants {
-    const val BASE_URL = "http://10.0.2.2:3000/"
-    // 10.0.2.2 points to your local machine from inside the Android emulator
-    // You'll swap this for your Railway URL in Week 2
+    // Per build type: debug → local emulator backend, release → deployed backend.
+    // Configured in app/build.gradle.kts (buildConfigField).
+    val BASE_URL = BuildConfig.BASE_URL
 }
