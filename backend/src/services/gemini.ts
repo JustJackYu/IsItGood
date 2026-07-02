@@ -162,4 +162,4 @@ const chatAboutGame = async (
     return result.response.text();
 };
 
-export { summarizeGameReviews, chatAboutGame };
+export { summarizeGameReviews, chatAboutGame, detectRootMode };

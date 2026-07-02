@@ -20,10 +20,7 @@ const getGamePrices = async (query: string): Promise<Deal[]> => {
     );
     const searchData = await searchResponse.json() as any[];
 
-    console.log(searchData)
-
     if (!searchData || searchData.length === 0) {
-        console.log("No game found")
         return [];
     }
 
@@ -42,8 +39,6 @@ const getGamePrices = async (query: string): Promise<Deal[]> => {
     );
 
     const priceData = await priceResponse.json() as any[];
-
-    console.log(priceData);
 
     const deals = priceData[0]?.deals ?? [];
 
